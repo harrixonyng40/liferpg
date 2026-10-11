@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#6c5ce7" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Life RPG" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="description" content="Multiplayer life role-playing simulator. Hustle, flex, explore, trade & fight." />
+
+  <title>Life RPG</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <!-- AUTH SCREEN -->
+  <div id="auth-screen" class="screen">
+    <div class="auth-card">
+      <div class="logo">🏙️</div>
+      <h1>Life RPG</h1>
+      <p class="subtitle">Multiplayer Life Simulator</p>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="login">Login</button>
+        <button class="tab" data-tab="register">Register</button>
+      </div>
+
+      <form id="login-form" class="auth-form">
+        <input type="email" id="login-email" placeholder="Email" required autocomplete="email" />
+        <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" />
+        <button type="submit">Login</button>
+      </form>
+
+      <form id="register-form" class="auth-form hidden">
+        <input type="text" id="reg-username" placeholder="Username" required maxlength="16" autocomplete="username" />
+        <input type="email" id="reg-email" placeholder="Email" required autocomplete="email" />
+        <input type="password" id="reg-password" placeholder="Password" required minlength="4" autocomplete="new-password" />
+        <button type="submit">Create Account</button>
+      </form>
+
+      <p class="hint">Install this app on your home screen for the best experience</p>
+      <div id="auth-error" class="error"></div>
+    </div>
+  </div>
+
+  <!-- ROLE SELECT -->
+  <div id="role-screen" class="screen hidden">
+    <div class="auth-card">
+      <h2>Choose Your Life Role</h2>
+      <p class="subtitle">This gives you bonuses on certain jobs</p>
+      <div id="role-buttons" class="role-grid"></div>
+    </div>
+  </div>
+
+  <!-- MAIN GAME -->
+  <div id="game-screen" class="screen hidden">
+    <!-- Top status bar -->
+    <header class="game-header">
+      <div class="player-info">
+        <span id="player-name">Player</span>
+        <span id="player-role" class="badge"></span>
+        <span id="player-level" class="level-badge">Lv.1</span>
+      </div>
+      <div class="money-display">
+        💵 $<span id="player-money">0</span>
+      </div>
+      <div class="stats-row">
+        <span>❤️ <span id="player-hp">100</span>/<span id="player-maxhp">100</span></span>
+        <span>⭐ <span id="player-flex">0</span></span>
+        <button id="buy-coins-btn" class="small-btn">+</button>
+      </div>
+    </header>
+
+    <!-- Content area -->
+    <main class="game-main">
+      <!-- HUSTLE PANEL -->
+      <section id="panel-hustle" class="panel active">
+        <h3>💼 Hustle Jobs</h3>
+        <p class="hint">Role bonus = 1.5× pay</p>
+        <div id="jobs-list" class="card-grid"></div>
+      </section>
+
+      <!-- SHOP PANEL -->
+      <section id="panel-shop" class="panel">
+        <h3>🛒 Buy & Flex</h3>
+        <div id="shop-list" class="card-grid"></div>
+        <h4 class="section-title">Your Inventory</h4>
+        <div id="inventory-list" class="inventory"></div>
+      </section>
+
+      <!-- MAP PANEL -->
+      <section id="panel-map" class="panel">
+        <h3>🗺️ City Map</h3>
+        <div class="map-controls">
+          <button class="map-btn" onclick="move(0,-1)">⬆️</button>
+          <div class="map-mid">
+            <button class="map-btn" onclick="move(-1,0)">⬅️</button>
+            <button class="map-btn" onclick="move(1,0)">➡️</button>
+          </div>
+          <button class="map-btn" onclick="move(0,1)">⬇️</button>
+        </div>
+        <div id="map-grid" class="map-grid"></div>
+        <p id="map-event" class="event-msg"></p>
+      </section>
+
+      <!-- SOCIAL PANEL -->
+      <section id="panel-social" class="panel">
+        <div class="social-stack">
+          <div class="chat-box">
+            <h3>💬 Live Chat</h3>
+            <div id="chat-messages"></div>
+            <form id="chat-form">
+              <input type="text" id="chat-input" placeholder="Type a message..." maxlength="300" />
+              <button type="submit">➤</button>
+            </form>
+          </div>
+
+          <div class="side-card">
+            <h4>🏆 Leaderboard</h4>
+            <div id="leaderboard"></div>
+          </div>
+
+          <div class="side-card">
+            <h4>👥 Online Now</h4>
+            <div id="online-list"></div>
+          </div>
+
+          <div class="side-card">
+            <h4>💸 Send Money</h4>
+            <input type="text" id="send-to" placeholder="Username" />
+            <input type="number" id="send-amount" placeholder="Amount" min="1" inputmode="numeric" />
+            <button id="send-money-btn" class="full-btn">Send Money</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- COMBAT PANEL -->
+      <section id="panel-combat" class="panel">
+        <h3>⚔️ Fight Combat</h3>
+        <p class="hint">Challenge an online player. Winner takes $50, loser loses $20.</p>
+        <div class="combat-form">
+          <input type="text" id="challenge-user" placeholder="Username to challenge" />
+          <button id="challenge-btn" class="full-btn">Challenge</button>
+        </div>
+        <button id="heal-btn" class="secondary full-btn">Heal Full HP ($50)</button>
+        <div id="combat-log" class="combat-log"></div>
+      </section>
+    </main>
+
+    <!-- Bottom navigation (mobile app style) -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-panel="hustle">
+        <span class="nav-icon">💼</span>
+        <span class="nav-label">Hustle</span>
+      </button>
+      <button class="nav-btn" data-panel="shop">
+        <span class="nav-icon">🛒</span>
+        <span class="nav-label">Shop</span>
+      </button>
+      <button class="nav-btn" data-panel="map">
+        <span class="nav-icon">🗺️</span>
+        <span class="nav-label">Map</span>
+      </button>
+      <button class="nav-btn" data-panel="social">
+        <span class="nav-icon">💬</span>
+        <span class="nav-label">Social</span>
+      </button>
+      <button class="nav-btn" data-panel="combat">
+        <span class="nav-icon">⚔️</span>
+        <span class="nav-label">Fight</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- BUY COINS MODAL -->
+  <div id="coins-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Buy Fake Coins</h3>
+      <p class="hint">Simulated purchase (in production → Stripe)</p>
+      <button class="full-btn" onclick="buyCoins('small')">$4.99 → 500 coins</button>
+      <button class="full-btn" onclick="buyCoins('medium')">$9.99 → 1,500 coins</button>
+      <button class="full-btn" onclick="buyCoins('large')">$19.99 → 4,000 coins</button>
+      <button class="secondary full-btn" onclick="closeCoinsModal()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- CHALLENGE MODAL -->
+  <div id="challenge-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Incoming Challenge!</h3>
+      <p id="challenge-text"></p>
+      <button id="accept-challenge" class="full-btn">Accept Fight</button>
+      <button id="decline-challenge" class="secondary full-btn">Decline</button>
+    </div>
+  </div>
+
+  <!-- Install prompt banner (Android) -->
+  <div id="install-banner" class="install-banner hidden">
+    <span>Install Life RPG on your phone</span>
+    <button id="install-btn">Install</button>
+    <button id="install-close" class="close-x">✕</button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
